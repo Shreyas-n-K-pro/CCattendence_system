@@ -4,10 +4,12 @@ const { Pool } = require('pg');
 let poolConfig;
 
 if (process.env.DATABASE_URL) {
-    // Railway/Heroku style connection string
+    // Railway/Heroku/Docker style connection string
+    // Use DB_SSL=true to enable SSL (for cloud providers like Render/Railway)
+    const useSSL = process.env.DB_SSL === 'true';
     poolConfig = {
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        ssl: useSSL ? { rejectUnauthorized: false } : false
     };
 } else {
     // Individual environment variables (local development)
