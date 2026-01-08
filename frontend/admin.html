@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - AttendPro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon">📚</div>
+                <h2>AttendPro</h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="attendance.html" class="nav-link"><span class="icon">✓</span><span>Mark
+                            Attendance</span></a></li>
+                <li class="nav-item"><a href="students.html" class="nav-link"><span class="icon">👥</span><span>View
+                            Students</span></a></li>
+                <li class="nav-item"><a href="register.html" class="nav-link"><span class="icon">➕</span><span>Register
+                            Student</span></a></li>
+                <li class="nav-item"><a href="view-attendance.html" class="nav-link"><span
+                            class="icon">📊</span><span>View Attendance</span></a></li>
+                <li class="nav-item"><a href="admin.html" class="nav-link active"><span
+                            class="icon">⚙️</span><span>Admin Dashboard</span></a></li>
+            </ul>
+            <div class="sidebar-footer"><a href="#" class="nav-link" id="logoutBtn"><span
+                        class="icon">🚪</span><span>Logout</span></a></div>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Admin Dashboard</h1>
+                <p>System overview and management</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon primary">👥</div>
+                    <div class="stat-info">
+                        <h3 id="totalStudents">0</h3>
+                        <p>Students</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon success">👨‍🏫</div>
+                    <div class="stat-info">
+                        <h3 id="totalTeachers">0</h3>
+                        <p>Teachers</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon warning">📚</div>
+                    <div class="stat-info">
+                        <h3 id="totalClasses">0</h3>
+                        <p>Classes</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon secondary">✓</div>
+                    <div class="stat-info">
+                        <h3 id="todayPresent">0</h3>
+                        <p>Present Today</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h3 class="card-title">Manage Teachers</h3><button class="btn btn-primary btn-sm"
+                        onclick="showAddUser()">➕ Add</button>
+                </div>
+                <table class="table" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Attendance Settings</h3>
+                </div>
+                <form id="settingsForm">
+                    <div class="form-row">
+                        <div class="form-group"><label class="form-label">Min Attendance %</label><input type="number"
+                                id="minPercent" class="form-control" min="0" max="100"></div>
+                        <div class="form-group"><label class="form-label">Max Absences</label><input type="number"
+                                id="maxAbsences" class="form-control" min="0"></div>
+                    </div>
+                    <button type="submit" class="btn btn-success">Save Settings</button>
+                </form>
+            </div>
+        </main>
+    </div>
+    <div class="modal-overlay" id="modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Add User</h3><button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <form id="userForm">
+                <div class="form-group"><label class="form-label">Username</label><input type="text" id="newUsername"
+                        class="form-control" required></div>
+                <div class="form-group"><label class="form-label">Password</label><input type="password"
+                        id="newPassword" class="form-control" required></div>
+                <div class="form-group"><label class="form-label">Role</label><select id="newRole" class="form-control">
+                        <option value="teacher">Teacher</option>
+                        <option value="admin">Admin</option>
+                    </select></div>
+                <button type="submit" class="btn btn-primary btn-block">Add User</button>
+            </form>
+        </div>
+    </div>
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        checkAuth();
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user.role !== 'admin') window.location.href = 'attendance.html';
+
+        async function loadDashboard() {
+            const r = await fetchAPI('/dashboard/stats'); const d = await r.json();
+            document.getElementById('totalStudents').textContent = d.total_students;
+            document.getElementById('totalTeachers').textContent = d.total_teachers;
+            document.getElementById('totalClasses').textContent = d.total_classes;
+            document.getElementById('todayPresent').textContent = d.today_present;
+        }
+        async function loadUsers() {
+            const r = await fetchAPI('/users'); const users = await r.json();
+            document.querySelector('#usersTable tbody').innerHTML = users.map(u => `
+                <tr><td>${u.username}</td><td><span class="badge badge-${u.role === 'admin' ? 'warning' : 'primary'}">${u.role}</span></td>
+                <td><button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id})">🗑️</button></td></tr>
+            `).join('');
+        }
+        async function loadSettings() {
+            const r = await fetchAPI('/settings'); const s = await r.json();
+            document.getElementById('minPercent').value = s.min_attendance_percent;
+            document.getElementById('maxAbsences').value = s.max_absences;
+        }
+        function showAddUser() { document.getElementById('modal').classList.add('active'); }
+        function closeModal() { document.getElementById('modal').classList.remove('active'); }
+        document.getElementById('userForm').onsubmit = async (e) => {
+            e.preventDefault();
+            await fetchAPI('/users', { method: 'POST', body: JSON.stringify({ username: document.getElementById('newUsername').value, password: document.getElementById('newPassword').value, role: document.getElementById('newRole').value }) });
+            closeModal(); loadUsers();
+        };
+        document.getElementById('settingsForm').onsubmit = async (e) => {
+            e.preventDefault();
+            await fetchAPI('/settings', { method: 'PUT', body: JSON.stringify({ min_attendance_percent: +document.getElementById('minPercent').value, max_absences: +document.getElementById('maxAbsences').value }) });
+            alert('Settings saved!');
+        };
+        async function deleteUser(id) { if (confirm('Delete?')) { await fetchAPI(`/users/${id}`, { method: 'DELETE' }); loadUsers(); } }
+        loadDashboard(); loadUsers(); loadSettings();
+    </script>
+</body>
+
+</html>

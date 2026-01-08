@@ -1,0 +1,8 @@
+{
+  "name": "attendance-system-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Attendance Management System",
+  "scripts": {
+    "start": "npx serve ."
+  }
+}

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Attendance - AttendPro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon">📚</div>
+                <h2>AttendPro</h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="attendance.html" class="nav-link"><span class="icon">✓</span><span>Mark
+                            Attendance</span></a></li>
+                <li class="nav-item"><a href="students.html" class="nav-link"><span class="icon">👥</span><span>View
+                            Students</span></a></li>
+                <li class="nav-item"><a href="register.html" class="nav-link"><span class="icon">➕</span><span>Register
+                            Student</span></a></li>
+                <li class="nav-item"><a href="view-attendance.html" class="nav-link active"><span
+                            class="icon">📊</span><span>View Attendance</span></a></li>
+                <li class="nav-item admin-only hidden"><a href="admin.html" class="nav-link"><span
+                            class="icon">⚙️</span><span>Admin Dashboard</span></a></li>
+            </ul>
+            <div class="sidebar-footer"><a href="#" class="nav-link" id="logoutBtn"><span
+                        class="icon">🚪</span><span>Logout</span></a></div>
+        </aside>
+        <main class="main-content">
+            <div class="page-header">
+                <h1>View Attendance</h1>
+                <p>Check attendance records and statistics</p>
+            </div>
+            <div class="card mb-3">
+                <div class="form-row">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Class</label>
+                        <select id="classFilter" class="form-control">
+                            <option value="">All Classes</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="form-label">Date</label>
+                        <input type="date" id="dateFilter" class="form-control">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;display:flex;align-items:flex-end;">
+                        <button class="btn btn-primary" onclick="loadAttendance()">View</button>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon success">✓</div>
+                    <div class="stat-info">
+                        <h3 id="presentCount">0</h3>
+                        <p>Present</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon warning">✕</div>
+                    <div class="stat-info">
+                        <h3 id="absentCount">0</h3>
+                        <p>Absent</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Attendance Records</h3>
+                </div>
+                <div class="table-container">
+                    <table class="table" id="attendanceTable">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Roll</th>
+                                <th>Class</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        checkAuth();
+        async function init() {
+            const r = await fetchAPI('/classes');
+            const c = await r.json();
+            document.getElementById('classFilter').innerHTML = '<option value="">All</option>' + c.map(x => `<option>${x}</option>`).join('');
+        }
+        async function loadAttendance() {
+            let url = '/attendance?';
+            const cls = document.getElementById('classFilter').value;
+            const dt = document.getElementById('dateFilter').value;
+            if (cls) url += `class=${encodeURIComponent(cls)}&`;
+            if (dt) url += `date=${dt}`;
+            const r = await fetchAPI(url);
+            const data = await r.json();
+            const present = data.filter(d => d.status === 'present').length;
+            const absent = data.filter(d => d.status === 'absent').length;
+            document.getElementById('presentCount').textContent = present;
+            document.getElementById('absentCount').textContent = absent;
+            document.querySelector('#attendanceTable tbody').innerHTML = data.map(d => `
+                <tr>
+                    <td>${d.name}</td>
+                    <td><code>${d.roll_number}</code></td>
+                    <td><span class="badge badge-primary">${d.class}</span></td>
+                    <td>${new Date(d.date).toLocaleDateString()}</td>
+                    <td><span class="badge badge-${d.status === 'present' ? 'success' : 'danger'}">${d.status}</span></td>
+                </tr>
+            `).join('') || '<tr><td colspan="5" class="text-center text-muted">No records</td></tr>';
+        }
+        init();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register Student - Attendance Management System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon">📚</div>
+                <h2>AttendPro</h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="attendance.html" class="nav-link">
+                        <span class="icon">✓</span>
+                        <span>Mark Attendance</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="students.html" class="nav-link">
+                        <span class="icon">👥</span>
+                        <span>View Students</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="register.html" class="nav-link active">
+                        <span class="icon">➕</span>
+                        <span>Register Student</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="view-attendance.html" class="nav-link">
+                        <span class="icon">📊</span>
+                        <span>View Attendance</span>
+                    </a>
+                </li>
+                <li class="nav-item admin-only hidden">
+                    <a href="admin.html" class="nav-link">
+                        <span class="icon">⚙️</span>
+                        <span>Admin Dashboard</span>
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="#" class="nav-link" id="logoutBtn">
+                    <span class="icon">🚪</span>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Register New Student</h1>
+                <p>Add a new student to the system</p>
+            </div>
+
+            <div class="card" style="max-width: 600px;">
+                <div id="alertBox" class="alert hidden"></div>
+
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label class="form-label" for="name">Student Name</label>
+                        <input type="text" id="name" class="form-control" placeholder="Enter full name" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="rollNumber">Roll Number</label>
+                            <input type="text" id="rollNumber" class="form-control" placeholder="e.g., 2024001"
+                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="className">Class</label>
+                            <select id="className" class="form-control" required>
+                                <option value="">Select Class</option>
+                                <option value="Class 1">Class 1</option>
+                                <option value="Class 2">Class 2</option>
+                                <option value="Class 3">Class 3</option>
+                                <option value="Class 4">Class 4</option>
+                                <option value="Class 5">Class 5</option>
+                                <option value="Class 6">Class 6</option>
+                                <option value="Class 7">Class 7</option>
+                                <option value="Class 8">Class 8</option>
+                                <option value="Class 9">Class 9</option>
+                                <option value="Class 10">Class 10</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <span>➕</span>
+                        <span>Register Student</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Recently Added Students -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">Recently Added Students</h3>
+                </div>
+                <div class="table-container">
+                    <table class="table" id="recentStudents">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Roll Number</th>
+                                <th>Class</th>
+                                <th>Added On</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        checkAuth();
+
+        const form = document.getElementById('registerForm');
+        const alertBox = document.getElementById('alertBox');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                name: document.getElementById('name').value,
+                roll_number: document.getElementById('rollNumber').value,
+                class: document.getElementById('className').value
+            };
+
+            try {
+                const response = await fetchAPI('/students', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert(alertBox, 'Student registered successfully!', 'success');
+                    form.reset();
+                    loadRecentStudents();
+                } else {
+                    const error = await response.json();
+                    showAlert(alertBox, error.error || 'Failed to register student', 'danger');
+                }
+            } catch (error) {
+                showAlert(alertBox, 'Connection error. Please try again.', 'danger');
+            }
+        });
+
+        async function loadRecentStudents() {
+            try {
+                const response = await fetchAPI('/students');
+                const students = await response.json();
+
+                const tbody = document.querySelector('#recentStudents tbody');
+                tbody.innerHTML = students.slice(-5).reverse().map(s => `
+                    <tr>
+                        <td>${s.name}</td>
+                        <td>${s.roll_number}</td>
+                        <td><span class="badge badge-primary">${s.class}</span></td>
+                        <td>${new Date(s.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4" class="text-center text-muted">No students registered yet</td></tr>';
+            } catch (error) {
+                console.error('Error loading students:', error);
+            }
+        }
+
+        loadRecentStudents();
+    </script>
+</body>
+
+</html>
