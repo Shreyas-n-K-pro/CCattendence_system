@@ -5,6 +5,43 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool, initializeDatabase } = require('./database');
 
+// Prometheus metrics
+const promClient = require('prom-client');
+const collectDefaultMetrics = promClient.collectDefaultMetrics;
+collectDefaultMetrics({ timeout: 5000 });
+
+// Custom metrics
+const httpRequestsTotal = new promClient.Counter({
+    name: 'http_requests_total',
+    help: 'Total number of HTTP requests',
+    labelNames: ['method', 'route', 'status_code']
+});
+
+const httpRequestDuration = new promClient.Histogram({
+    name: 'http_request_duration_seconds',
+    help: 'Duration of HTTP requests in seconds',
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
+});
+
+const activeUsers = new promClient.Gauge({
+    name: 'active_users',
+    help: 'Number of active users'
+});
+
+const attendanceMarked = new promClient.Counter({
+    name: 'attendance_marked_total',
+    help: 'Total attendance records marked',
+    labelNames: ['status']
+});
+
+const dbQueryDuration = new promClient.Histogram({
+    name: 'db_query_duration_seconds',
+    help: 'Duration of database queries',
+    labelNames: ['query_type'],
+    buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'attendance_secret_key_2024';
@@ -15,6 +52,28 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+
+// Metrics middleware - track all requests
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = (Date.now() - start) / 1000;
+        const route = req.route ? req.route.path : req.path;
+        httpRequestsTotal.inc({ method: req.method, route: route, status_code: res.statusCode });
+        httpRequestDuration.observe({ method: req.method, route: route, status_code: res.statusCode }, duration);
+    });
+    next();
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', promClient.register.contentType);
+        res.end(await promClient.register.metrics());
+    } catch (err) {
+        res.status(500).end(err);
+    }
+});
 
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
@@ -160,6 +219,9 @@ app.post('/api/attendance', authenticateToken, async (req, res) => {
                 ON CONFLICT (student_id, date) 
                 DO UPDATE SET status = $3, marked_by = $4
             `, [record.student_id, date, record.status, marked_by]);
+            
+            // Track attendance metrics
+            attendanceMarked.inc({ status: record.status });
         }
 
         res.json({ message: 'Attendance marked successfully' });
